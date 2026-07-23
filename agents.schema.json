@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Incarna office & agents config",
+  "type": "object",
+  "required": ["agents"],
+  "properties": {
+    "office": {
+      "type": "object",
+      "properties": {
+        "environment": {
+          "type": "string",
+          "enum": ["passthrough", "void"],
+          "description": "passthrough = your real room (AR). void = plain dark backdrop (VR / desktop preview)."
+        },
+        "seats": {
+          "type": "object",
+          "description": "Named anchor points, relative to the office origin (spawns in front of you).",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "position": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+              "rotation": { "type": "number", "description": "Yaw in degrees (before facing the user)." }
+            },
+            "required": ["position"]
+          }
+        },
+        "spawn": {
+          "type": "object",
+          "properties": {
+            "forward": { "type": "number", "description": "Meters in front of you the office origin appears." },
+            "lift": { "type": "number", "description": "Vertical offset in meters." }
+          }
+        }
+      }
+    },
+    "agents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "brain", "voice", "avatar"],
+        "properties": {
+          "id":     { "type": "string", "description": "Unique id used by the app (slug)." },
+          "name":   { "type": "string", "description": "Display name." },
+          "emoji":  { "type": "string", "description": "Icon shown in the lobby and HUD." },
+          "brain":  { "type": "string", "description": "OpenClaw agent id this avatar talks to." },
+          "voice":  { "type": "string", "description": "ElevenLabs voice_id." },
+          "avatar": { "type": "string", "description": "Path to the .vrm model." },
+          "seat":   { "type": "string", "description": "Name of a seat from office.seats." },
+          "desc":   { "type": "string", "description": "Short description shown in the lobby card." },
+          "tone":   { "type": "string", "description": "Personality for the fast persona layer (ack / summary / small talk)." },
+          "scale":  { "type": "number", "description": "Optional avatar scale multiplier (default 1)." },
+          "phrases":{ "type": "string", "description": "Optional folder id under assets/voz/ for pre-generated v3 phrases." }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Incarna — your agents, embodied</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+    <!-- A-Frame (vendored, compatible with three-vrm) -->
+    <script src="vendor/aframe.min.js"></script>
+    <!-- three-vrm + three-vrm-animation UMD: BEFORE the VRM components -->
+    <script src="vendor/three-vrm.min.js"></script>
+    <script src="vendor/three-vrm-animation.min.js"></script>
+
+    <!-- Project components -->
+    <script src="js/components/vrm-model.js"></script>
+    <script src="js/components/vrm-anim-utils.js"></script>
+    <script src="js/components/vrm-actor.js"></script>
+    <script src="js/components/look-at-camera.js"></script>
+    <script src="js/components/fit-model.js"></script>
+    <script src="js/components/office-manager.js"></script>
+    <script src="js/components/grabbable.js"></script>
+
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <!-- ========== LOBBY (2D entry screen) ========== -->
+    <div id="lobby">
+      <div id="lobby-inner">
+        <div id="lobby-logo">◐ Incarna</div>
+        <h1 id="lobby-title">Your office</h1>
+        <p id="lobby-sub">The agents who live in your room</p>
+        <div id="roster">loading…</div>
+        <button id="enter-btn" type="button">Enter →</button>
+        <p id="lobby-note"></p>
+      </div>
+    </div>
+
+    <!-- ========== MIXED-REALITY EXPERIENCE ========== -->
+    <!-- immersive-ar = passthrough (your room). dom-overlay keeps the HUD visible in AR. -->
+    <a-scene
+      webxr="requiredFeatures: local-floor;
+             optionalFeatures: hit-test, hand-tracking, dom-overlay;
+             overlayElement: #hud"
+      renderer="colorManagement: true; physicallyCorrectLights: true"
+      background="transparent: true"
+      grab-system
+      loading-screen="dotsColor: #00E5FF; backgroundColor: #101014">
+
+      <!-- Avatars are spawned from config by office-manager. -->
+
+      <a-entity light="type: ambient; intensity: 1.0"></a-entity>
+      <a-entity light="type: directional; intensity: 0.8" position="1 3 1"></a-entity>
+
+      <a-entity
+        id="user-camera"
+        camera
+        position="0 1.6 0"
+        look-controls
+        wasd-controls="acceleration: 20"></a-entity>
+
+      <!-- Controllers: A/X + trigger = press-to-talk; grip = move an avatar. -->
+      <a-entity id="rhand" oculus-touch-controls="hand: right"></a-entity>
+      <a-entity id="lhand" oculus-touch-controls="hand: left"></a-entity>
+    </a-scene>
+
+    <script src="js/lobby.js"></script>
+    <script src="js/voice-chat.js"></script>
+  </body>
+</html>

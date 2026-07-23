@@ -1,0 +1,18 @@
+{
+  "//": "Catalog of body actions. tag = what the brain writes as [action:tag]. vrma = motion file in assets/anims/vrma/. face = optional VRM expression. status: ok | untested | broken. Only non-broken tags are advertised to the brain; the Action Lab (/lab.html) can test and re-curate every entry.",
+  "actions": [
+    { "tag": "wave",       "vrma": "Goodbye",   "desc": "wave hello",          "status": "ok" },
+    { "tag": "bye",        "vrma": "Goodbye",   "desc": "wave goodbye",         "status": "ok" },
+    { "tag": "clap",       "vrma": "Clapping",  "face": "happy",    "desc": "applaud",   "status": "ok" },
+    { "tag": "jump",       "vrma": "Jump",      "desc": "hop in place",         "status": "untested" },
+    { "tag": "think",      "vrma": "Thinking",  "desc": "thinking pose (held during brain calls)", "status": "ok" },
+    { "tag": "lookaround", "vrma": "LookAround","desc": "glance around (idle)", "status": "ok" },
+    { "tag": "relax",      "vrma": "Relax",     "face": "relaxed",  "desc": "stretch/relax", "status": "untested" },
+    { "tag": "sleepy",     "vrma": "Sleepy",    "desc": "yawn / sleepy",        "status": "untested" },
+    { "tag": "sad",        "vrma": "Sad",       "face": "sad",      "desc": "look sad",      "status": "ok" },
+    { "tag": "angry",      "vrma": "Angry",     "face": "angry",    "desc": "look angry",    "status": "ok" },
+    { "tag": "surprised",  "vrma": "Surprised", "face": "surprised","desc": "look surprised","status": "ok" },
+    { "tag": "shy",        "vrma": "Blush",     "face": "happy",    "desc": "blush / shy",   "status": "untested" },
+    { "tag": "happy",      "face": "happy",     "desc": "smile (face only)",    "status": "ok" }
+  ]
+}

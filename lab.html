@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Incarna — Action Lab</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="vendor/aframe.min.js"></script>
+    <script src="vendor/three-vrm.min.js"></script>
+    <script src="vendor/three-vrm-animation.min.js"></script>
+    <script src="js/components/vrm-model.js"></script>
+    <script src="js/components/vrm-anim-utils.js"></script>
+    <script src="js/components/vrm-actor.js"></script>
+    <script src="js/components/look-at-camera.js"></script>
+    <link rel="stylesheet" href="css/styles.css" />
+    <style>
+      body { display: grid; grid-template-columns: 1fr 380px; height: 100vh; overflow: hidden; }
+      #stage { position: relative; background: radial-gradient(800px 500px at 50% 20%, #1a2432, #0b0d12 70%); }
+      a-scene { width: 100%; height: 100%; }
+      #panel { border-left: 1px solid var(--stroke); background: var(--panel); overflow-y: auto; padding: 16px; }
+      #panel h2 { margin: 0 0 2px; font-size: 18px; }
+      #panel .sub { color: var(--muted); font-size: 12px; margin-bottom: 14px; }
+      .row { display: grid; grid-template-columns: 84px 1fr auto; gap: 8px; align-items: center;
+        padding: 8px; border: 1px solid var(--stroke); border-radius: 12px; margin-bottom: 8px; }
+      .row.pass { border-color: var(--ok); } .row.fail { border-color: var(--bad); }
+      .row .tag { font-weight: 700; }
+      .row .desc { color: var(--muted); font-size: 11px; }
+      .row button.play { padding: 8px 12px; border-radius: 10px; border: 0; cursor: pointer;
+        background: var(--cyan); color: #04222a; font-weight: 700; }
+      .row select { width: 100%; background: #0e131b; color: var(--text); border: 1px solid var(--stroke);
+        border-radius: 8px; padding: 5px; margin-top: 4px; }
+      .row .note { width: 100%; background: #0e131b; color: var(--text); border: 1px solid var(--stroke);
+        border-radius: 8px; padding: 5px; margin-top: 4px; font-size: 11px; }
+      .barrow { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 16px; }
+      .barrow button { padding: 7px 10px; border-radius: 10px; border: 1px solid var(--stroke);
+        background: #0e131b; color: var(--text); cursor: pointer; font-size: 12px; }
+      #save { width: 100%; padding: 12px; border: 0; border-radius: 12px; cursor: pointer; margin-top: 8px;
+        background: linear-gradient(180deg, #4bf0ff, var(--cyan)); color: #04222a; font-weight: 700; }
+      #savemsg { text-align: center; font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 16px; }
+      .legend { position: absolute; left: 12px; bottom: 12px; color: var(--muted); font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <div id="stage">
+      <a-scene renderer="colorManagement: true; physicallyCorrectLights: true"
+               background="color: #0b0d12" embedded vr-mode-ui="enabled: false">
+        <a-entity light="type: ambient; intensity: 1.1"></a-entity>
+        <a-entity light="type: directional; intensity: 0.8" position="1 3 2"></a-entity>
+        <a-entity id="lab-avatar" vrm-actor look-at-camera="enabled: true; smooth: 0.1"
+                  position="0 0 -1.6" rotation="0 0 0"></a-entity>
+        <a-entity camera position="0 1.4 0" look-controls wasd-controls></a-entity>
+      </a-scene>
+      <div class="legend">drag to orbit • WASD to move • Action Lab</div>
+    </div>
+
+    <div id="panel">
+      <h2>◐ Action Lab</h2>
+      <div class="sub">Trigger each action on a live avatar. Mark what works, add notes, save. Only non-broken actions are offered to the brain in the main app.</div>
+
+      <div><b>Emotions (face only)</b></div>
+      <div class="barrow" id="emos"></div>
+
+      <div><b>Reset</b></div>
+      <div class="barrow"><button id="idle">▶ idle</button><button id="neutral">neutral face</button></div>
+
+      <div><b>Actions</b></div>
+      <div id="rows"></div>
+
+      <button id="save">💾 Save catalog</button>
+      <div id="savemsg"></div>
+    </div>
+
+    <script>
+      const K = new URL(location.href).searchParams.get('k') || '';
+      const withK = (u) => (K ? u + (u.includes('?') ? '&' : '?') + 'k=' + encodeURIComponent(K) : u);
+      const $ = (s) => document.querySelector(s);
+
+      function actor() {
+        const el = $('#lab-avatar');
+        return (el && el.components && el.components['vrm-actor']) || null;
+      }
+
+      let catalog = [];
+
+      async function boot() {
+        // pick the first configured avatar, else the bundled default
+        let avatar = 'assets/avatars/vrm_girl.vrm';
+        try {
+          const office = await (await fetch(withK('/api/office'))).json();
+          if (office.agents && office.agents[0]) avatar = office.agents[0].avatar;
+        } catch (e) { /* offline: default */ }
+        $('#lab-avatar').setAttribute('vrm-model', 'src: ' + avatar);
+
+        try { catalog = (await (await fetch(withK('/api/actions'))).json()).actions || []; }
+        catch (e) { catalog = []; }
+        renderEmotions();
+        renderRows();
+      }
+
+      function renderEmotions() {
+        const emos = ['happy', 'angry', 'sad', 'surprised', 'relaxed'];
+        const bar = $('#emos');
+        emos.forEach((e) => {
+          const b = document.createElement('button');
+          b.textContent = e;
+          b.onclick = () => { const a = actor(); if (a) a.setEmocao(e); };
+          bar.appendChild(b);
+        });
+        $('#idle').onclick = () => { const a = actor(); if (a) a.idle(); };
+        $('#neutral').onclick = () => { const a = actor(); if (a) a.setEmocao(null); };
+      }
+
+      function renderRows() {
+        const rows = $('#rows');
+        rows.innerHTML = '';
+        catalog.forEach((act, i) => {
+          const row = document.createElement('div');
+          row.className = 'row';
+          row.innerHTML =
+            `<button class="play">▶ ${act.tag}</button>` +
+            `<div><div class="tag">${act.tag}</div><div class="desc">${act.desc || (act.vrma || 'face only')}</div>` +
+            `<input class="note" placeholder="note…" value="${act.note || ''}"></div>` +
+            `<select><option value="ok">ok</option><option value="untested">untested</option><option value="broken">broken</option></select>`;
+          const sel = row.querySelector('select');
+          sel.value = act.status || 'untested';
+          sel.onchange = () => { catalog[i].status = sel.value; };
+          row.querySelector('.note').oninput = (e) => { catalog[i].note = e.target.value; };
+          row.querySelector('.play').onclick = async () => {
+            const a = actor();
+            if (!a) { row.className = 'row fail'; return; }
+            const res = await a.acionar(act.tag);
+            row.className = 'row ' + (res && res.ok ? 'pass' : 'fail');
+            if (res && !res.ok) $('#savemsg').textContent = `${act.tag}: ${res.reason}`;
+          };
+          rows.appendChild(row);
+        });
+      }
+
+      $('#save').onclick = async () => {
+        $('#savemsg').textContent = 'saving…';
+        try {
+          const r = await fetch(withK('/api/actions'), {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ actions: catalog }),
+          });
+          const d = await r.json();
+          $('#savemsg').textContent = d.ok ? '✅ saved to actions.json' : ('⚠️ ' + (d.error || 'failed'));
+        } catch (e) { $('#savemsg').textContent = '⚠️ ' + e.message; }
+      };
+
+      boot();
+    </script>
+  </body>
+</html>

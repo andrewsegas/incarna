@@ -1,0 +1,29 @@
+# secrets & personal config — NEVER commit
+.env
+.env.local
+agents.local.json
+*.local.json
+
+# 3D avatars: VRM licenses often forbid redistribution — bring your own.
+# (Keep this ignore; document how to add one in assets/avatars/README.md.)
+assets/avatars/*.vrm
+assets/avatars/*.glb
+assets/avatars/*.zip
+
+# Pre-generated voice cache (per-agent, tied to your ElevenLabs voice)
+assets/voz/*/
+
+# logs, diagnostics, screenshots
+*.log
+incarna.log
+fotos/
+/tmp/
+.DS_Store
+Thumbs.db
+
+# deps (if a build is ever added)
+node_modules/
+dist/
+
+# CI workflow: add after granting the gh token the `workflow` scope
+.github/workflows/ci.yml
