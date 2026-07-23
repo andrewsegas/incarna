@@ -9,8 +9,9 @@
  * Flow:
  *   HOLD mic/space/grip  -> record microphone (MediaRecorder)
  *   RELEASE              -> POST /api/stt (whisper) -> text
- *   -> /api/persona/route (smalltalk answers now | task = ack + /api/agent + summarize)
- *   each line -> /api/tts (agent voice) -> lip-sync + [action:*]
+ *   -> POST /api/agent   (talks DIRECTLY to the agent; it keeps its own history,
+ *                         and the server staples voice/output instructions on)
+ *   reply -> /api/tts (agent voice) -> lip-sync + [action:*]
  */
 (function () {
   // ---- token for a gated public link (?k=...) ----
@@ -115,9 +116,9 @@
       const s = await (await fetch(withK('/api/status'))).json();
       const dot = (ok) => `<i class="dot ${ok ? 'ok' : 'bad'}"></i>`;
       healthEl.innerHTML =
-        `${dot(s.services.openclaw)}brain ${dot(s.services.openai)}voice-ai ${dot(s.services.elevenlabs)}tts`;
+        `${dot(s.services.openclaw)}brain ${dot(s.services.openai)}stt ${dot(s.services.elevenlabs)}voice`;
       if (!s.services.openclaw) diag('[health] OpenClaw brain not configured (OPENCLAW_TOKEN missing)');
-      if (!s.services.openai) diag('[health] STT/persona off (OPENAI_API_KEY missing)');
+      if (!s.services.openai) diag('[health] STT off (OPENAI_API_KEY missing) — speech-to-text unavailable');
       if (!s.services.elevenlabs) diag('[health] ElevenLabs off — will use browser voice');
     } catch (e) { healthEl.innerHTML = '<i class="dot bad"></i>offline'; diag('[health] ' + e.message); }
   }
@@ -248,29 +249,27 @@
     say(`you: “${transcript}”`);
     diag(`[you→${a ? a.id : '?'}] ${transcript}`);
 
-    const route = await postJson('/api/persona/route', { persona: a.id, text: transcript });
-
-    if (route.kind !== 'task') { await speak(route.say); return; } // small talk
-
-    // task: fire the brain now, cover latency with an instant v3 filler
+    // Talk DIRECTLY to the agent — it keeps its own history (stable session on the
+    // server). The app staples voice/output instructions server-side, so the reply
+    // comes back short and may carry an [action:*] tag. Cover latency with a
+    // "thinking" pose + a cached filler ONLY if the reply is slow to arrive.
     const act = actor();
     if (act) act.acionar('think', { hold: true });
+    setState('thinking');
     const t0 = Date.now();
     const brainP = postJson('/api/agent', { persona: a.id, text: transcript }, 120000)
       .catch((e) => { diag('[agent] ' + (e && e.message)); return { reply: '' }; });
-    const played = await playCachedPhrase(pickFiller());
-    if (!played) await speak(route.say);
-    setState('thinking');
+
+    const slow = await Promise.race([
+      brainP.then(() => false),
+      new Promise((r) => setTimeout(() => r(true), 1500)),
+    ]);
+    if (slow) await playCachedPhrase(pickFiller());
 
     const res = await brainP;
     diag(`[brain] ${Date.now() - t0}ms ${res.error ? 'ERROR ' + res.error : (res.reply ? 'ok' : 'empty')}`);
-    if (res.reply) {
-      const sum = await postJson('/api/persona/summarize', { persona: a.id, text: transcript, agentReply: res.reply });
-      await speak(sum.say);
-    } else {
-      // brain failed or timed out — always tell the user, out loud
-      if (!(await playCachedPhrase('problema', 'sad'))) await speak('I had trouble reaching my brain just now.');
-    }
+    if (res.reply) await speak(res.reply);
+    else if (!(await playCachedPhrase('problema', 'sad'))) await speak('Tive um problema pra falar com o meu cérebro agora.');
   }
 
   async function postJson(url, body, timeoutMs) {
@@ -305,7 +304,11 @@
   async function speak(text) {
     if (!text) return;
     const actions = [...text.matchAll(/\[action:([^\]]+)\]/gi)].map((m) => m[1].trim().toLowerCase());
-    const clean = text.replace(/\[action:[^\]]*\]/gi, '').replace(/\s{2,}/g, ' ').trim();
+    const clean = text
+      .replace(/\[action:[^\]]*\]/gi, '')  // action tags -> body, not speech
+      .replace(/[*_`#>]+/g, '')            // strip markdown emphasis/headers
+      .replace(/\s{2,}/g, ' ')
+      .trim();
     const a = actor();
     if (a) { if (actions.length) actions.forEach((ac) => a.acionar(ac)); else a.idle(); }
     setState('speaking', `💬 ${clean}`);

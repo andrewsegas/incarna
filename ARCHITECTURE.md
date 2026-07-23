@@ -21,31 +21,45 @@ a **static WebXR front-end** (A-Frame + three-vrm). No build step, no framework.
 │  /api/office /api/agents      config from agents.local.json                     │
 │  /api/actions                 catalog from actions.json                         │
 │  /api/stt      ─▶ OpenAI Whisper           (speech → text)                      │
-│  /api/persona/route ─┐                                                          │
-│  /api/persona/summarize ─▶ OpenAI gpt-4o-mini   (fast persona layer)            │
-│  /api/agent    ─▶ OpenClaw gateway /v1/chat/completions   (the slow "brain")    │
+│  /api/agent    ─▶ OpenClaw gateway /v1/chat/completions   (the agent "brain")   │
+│                   · user: "incarna:<id>"  → stable session (agent keeps history) │
+│                   · staples a voice/output preamble onto the message             │
 │  /api/tts      ─▶ ElevenLabs with-timestamps   (text → voice + lip-sync timing) │
 │  /api/status   health · SESSION_TOKEN gate · per-IP rate limit                  │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## The two-layer conversation
+## The conversation loop
 
-Latency is the enemy of presence, so a full agent turn never blocks the voice loop:
+You talk **directly to the selected agent** — no LLM middleman rewriting or
+classifying your words. OpenAI is used only for transcription (STT).
 
 1. **STT** — held audio → `/api/stt` (Whisper) → text.
-2. **Fast persona** (`gpt-4o-mini`, `/api/persona/route`) classifies the utterance:
-   - **small talk / an action request** ("wave", "be happy") → answered *instantly*, no brain call.
-   - **task** → returns a one-line ack; the real request goes to the brain in parallel.
-3. While the **brain** (`/api/agent` → an OpenClaw agent) works, the avatar plays a
-   pre-generated "thinking" phrase + a `think` pose to cover the wait.
-4. The brain's result is compressed into 1–2 spoken lines by the fast persona
-   (`/api/persona/summarize`).
-5. Every spoken line → **TTS** (`/api/tts`, ElevenLabs `with-timestamps`) → the
-   alignment drives **viseme-based lip-sync** in `vrm-actor`.
+2. **Agent** — text → `/api/agent` → the OpenClaw agent for the active avatar.
+   Two things make this work well:
+   - **Stable session.** The call sends `user: "incarna:<agentId>"`, so the
+     Gateway keeps a persistent session and the agent remembers the whole
+     conversation across turns. The app stores no history itself.
+     *(The Gateway's OpenAI endpoint is stateless per request unless you pass a
+     stable `user` — see `gateway/openai-http-api.md`.)*
+   - **Stapled output instructions.** The server appends a short "voice mode"
+     preamble (`voicePreamble()`) to the message: answer briefly, spoken style,
+     and optionally end with one `[action:tag]`. This is added **only** to
+     messages sent through Incarna — talking to the same agent via webchat is
+     unaffected, and the agent needs no special teaching.
+3. While the agent works, the avatar shows a `think` pose; if the reply is slow
+   (>1.5s) a pre-generated filler phrase covers the pause.
+4. The reply → **TTS** (`/api/tts`, ElevenLabs `with-timestamps`) → the alignment
+   drives **viseme-based lip-sync** in `vrm-actor`.
 
-Inline `[action:tag]` markers in any spoken line are stripped from the audio and
-turned into a body motion / facial expression (see `docs/adding-actions.md`).
+Inline `[action:tag]` markers in the reply are stripped from the audio and turned
+into a body motion / facial expression (see `docs/adding-actions.md`).
+
+> **Why direct (not a relay)?** An earlier design routed everything through a
+> "secretary" agent that forwarded to other agents and summarized back. That
+> doubled latency, split history across sessions, and could ping-pong. Talking
+> directly to the agent you're facing — each with its own persistent memory — is
+> simpler, cheaper, and keeps full context.
 
 ## Why a proxy
 

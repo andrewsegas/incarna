@@ -38,8 +38,7 @@ const numOr = (v, d) => { const n = Number(v); return Number.isFinite(n) ? n : d
 const PORT = numOr(ENV.PORT, 8080);
 const OPENCLAW_URL = ENV.OPENCLAW_URL || 'http://127.0.0.1:18789';
 const OPENCLAW_TOKEN = ENV.OPENCLAW_TOKEN || '';
-const OPENAI_KEY = ENV.OPENAI_API_KEY || '';
-const OPENAI_MODEL = ENV.OPENAI_MODEL || 'gpt-4o-mini';
+const OPENAI_KEY = ENV.OPENAI_API_KEY || ''; // used for STT (Whisper) only
 const ELEVEN_KEY = ENV.ELEVENLABS_API_KEY || '';
 const ELEVEN_MODEL = ENV.ELEVENLABS_MODEL || 'eleven_flash_v2_5';
 const ELEVEN_VOICE_DEFAULT = ENV.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM';
@@ -82,12 +81,25 @@ function agentById(id) { return AGENTS.find((a) => a.id === id) || AGENTS[0] || 
 // to the brain; the Action Lab can still test every entry.
 const ACTIONS = loadJson('actions.json', { actions: [] }).actions || [];
 const okActionTags = ACTIONS.filter((a) => a.status !== 'broken').map((a) => a.tag);
-const ACTION_HINT =
-  'You have an EXPRESSIVE 3D body and face. Express yourself often: most emotional replies should ' +
-  'end with ONE [action:tag] at the very end, matching what you say. ' +
-  `Available tags: ${okActionTags.map((t) => `[action:${t}]`).join(' ')}. ` +
-  'If the user explicitly asks for an action or expression ("be angry", "jump", "wave", "stop moving"), ' +
-  'do it immediately with that tag; for "stop / calm down" use [action:calm]. At most ONE tag per line, always at the end.';
+
+// Output instructions the app STAPLES onto every message it sends to an agent,
+// so the agent replies in a voice-friendly way and can drive the avatar's body —
+// WITHOUT the agent needing any special teaching. Messages the agent receives
+// through other channels (webchat, etc.) don't carry this, so normal chats are
+// unaffected. Built from actions.json so it always matches the live catalog.
+function voicePreamble() {
+  return (
+    '\n\n———\n[Incarna · modo voz] Você está sendo OUVIDO por voz através de um avatar 3D. ' +
+    'Responda em português do Brasil, curto e falado (no máximo 1–2 frases, ~40 palavras), como quem ' +
+    'conversa — sem listas, markdown ou texto cru; diga só o essencial e ofereça detalhar se for muito. ' +
+    'Opcionalmente TERMINE com UMA tag [action:tag] que combine com o que diz — ela vira gesto/expressão ' +
+    'no corpo do avatar e é removida da fala. ' +
+    `Tags disponíveis: ${okActionTags.map((t) => `[action:${t}]`).join(' ')}. ` +
+    'Guia: wave=cumprimento, clap=comemorar/elogio, jump=empolgação, think=pensando, sad=má notícia, ' +
+    'angry=irritação, surprised=surpresa, shy=vergonha/flerte, happy=sorriso, calm=voltar ao normal. ' +
+    'No máximo UMA tag, sempre no fim.'
+  );
+}
 
 // ------------------------------------------------------------------ helpers
 const MIME = {
@@ -138,80 +150,18 @@ function clientIp(req) {
   return (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'local';
 }
 
-// Fast LLM call (OpenAI-compatible). jsonMode forces a JSON object reply.
-async function fastLLM(system, user, { jsonMode = false, maxTokens = 160 } = {}) {
-  if (!OPENAI_KEY) throw new Error('no OPENAI_API_KEY');
-  const body = {
-    model: OPENAI_MODEL,
-    max_tokens: maxTokens,
-    messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
-  };
-  if (jsonMode) body.response_format = { type: 'json_object' };
-  const r = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${OPENAI_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!r.ok) throw new Error(`openai ${r.status}: ${(await r.text()).slice(0, 200)}`);
-  const d = await r.json();
-  return d.choices?.[0]?.message?.content || '';
-}
-
-// ------------------------------------------------------------------ /api/persona/route
-async function apiPersonaRoute(req, res) {
-  const { persona, text } = await readBody(req);
-  if (!text) return json(res, 400, { error: 'text required' });
-  const p = agentById(persona);
-  const system =
-    `You are ${p?.name || 'an assistant'}, a 3D avatar that talks by voice in Brazilian Portuguese. ` +
-    `Personality: ${p?.tone || 'helpful and concise.'} ${ACTION_HINT} ` +
-    'Classify the last user utterance and reply ONLY as JSON {"kind":"smalltalk|task","say":"..."}. ' +
-    'Use kind="smalltalk" for social lines (greetings, thanks, goodbyes, compliments) AND for requests to ' +
-    'perform an action/expression (jump, wave, be angry/sad/happy, change your face, stop moving) — those you ' +
-    'resolve on the spot. In that case say = your short reply (1-2 sentences) ending with the matching [action:tag]. ' +
-    'For ANY question, request for info/data/opinion, or task — even casual or short — use kind="task" (your brain ' +
-    'must consult its data and tools). Then say = ONE short acknowledgement in your voice (e.g. "let me check that"). ' +
-    'When unsure, use "task".';
-  try {
-    const raw = await fastLLM(system, text, { jsonMode: true, maxTokens: 120 });
-    let out;
-    try { out = JSON.parse(raw); } catch { out = { kind: 'task', say: raw || 'Let me check that.' }; }
-    if (out.kind !== 'smalltalk' && out.kind !== 'task') out.kind = 'task';
-    if (!out.say) out.say = out.kind === 'task' ? 'Let me check that for you.' : 'Alright!';
-    json(res, 200, out);
-  } catch (e) {
-    console.error('[route] fallback:', e.message);
-    json(res, 200, { kind: 'task', say: 'Let me check that for you.', degraded: true, detail: e.message });
-  }
-}
-
-// ------------------------------------------------------------------ /api/persona/summarize
-async function apiPersonaSummarize(req, res) {
-  const { persona, text, agentReply } = await readBody(req);
-  if (!agentReply) return json(res, 400, { error: 'agentReply required' });
-  const p = agentById(persona);
-  const system =
-    `You are ${p?.name || 'an assistant'}, a 3D avatar that speaks by voice in Brazilian Portuguese. ` +
-    `Personality: ${p?.tone || 'helpful and concise.'} ${ACTION_HINT} ` +
-    'Your brain (an agent) processed the request and returned a technical result. Turn it into a VERY SHORT ' +
-    'spoken answer: at most 2 short sentences (~40 words), in your voice, as if you did the work. Do not read the ' +
-    'raw text or list everything; say only the essential. If there is a lot, summarize the main point and offer to detail later.';
-  const user = `User request: "${text || ''}"\n\nBrain result:\n${agentReply}`;
-  try {
-    const say = await fastLLM(system, user, { maxTokens: 110 });
-    json(res, 200, { say: say || agentReply.slice(0, 240) });
-  } catch (e) {
-    console.error('[summarize] fallback:', e.message);
-    json(res, 200, { say: agentReply.slice(0, 240), degraded: true, detail: e.message });
-  }
-}
-
 // ------------------------------------------------------------------ /api/agent (OpenClaw brain)
+// Talks DIRECTLY to the selected agent — no OpenAI middleman in the conversation.
+// - `user: incarna:<agentId>` gives a STABLE session key, so the agent keeps its
+//   own conversation history across turns (the app stores nothing).
+// - voicePreamble() is stapled onto the message so the agent answers in a short,
+//   spoken style and may drive the body with [action:*] — without special teaching.
 async function apiAgent(req, res) {
   const { persona, text } = await readBody(req);
   if (!text) return json(res, 400, { error: 'text required' });
   const p = agentById(persona);
   const brain = p?.brain || 'main';
+  const sessionId = `incarna:${p?.id || brain}`;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 180000);
   try {
@@ -222,12 +172,16 @@ async function apiAgent(req, res) {
         'Content-Type': 'application/json',
         ...(OPENCLAW_TOKEN ? { Authorization: `Bearer ${OPENCLAW_TOKEN}` } : {}),
       },
-      body: JSON.stringify({ model: `openclaw/${brain}`, messages: [{ role: 'user', content: text }] }),
+      body: JSON.stringify({
+        model: `openclaw/${brain}`,
+        user: sessionId, // stable session -> agent-side history persists
+        messages: [{ role: 'user', content: text + voicePreamble() }],
+      }),
     });
     if (!r.ok) throw new Error(`gateway ${r.status}: ${(await r.text()).slice(0, 300)}`);
     const data = await r.json();
     const reply = data.choices?.[0]?.message?.content || '';
-    json(res, 200, { reply, source: `openclaw/${brain}` });
+    json(res, 200, { reply, source: `openclaw/${brain}`, session: sessionId });
   } catch (e) {
     console.error('[agent] error:', e.message);
     json(res, 200, { reply: '', error: e.message, source: `openclaw/${brain}` });
@@ -399,8 +353,6 @@ const server = http.createServer(async (req, res) => {
       }
       if (req.method === 'GET' && route === '/api/actions') return apiActions(req, res);
       if (req.method === 'POST' && route === '/api/actions') return await apiActionsSave(req, res);
-      if (req.method === 'POST' && route === '/api/persona/route') return await apiPersonaRoute(req, res);
-      if (req.method === 'POST' && route === '/api/persona/summarize') return await apiPersonaSummarize(req, res);
       if (req.method === 'POST' && route === '/api/agent') return await apiAgent(req, res);
       if (req.method === 'POST' && route === '/api/stt') return await apiStt(req, res);
       if (req.method === 'POST' && route === '/api/tts') return await apiTts(req, res);

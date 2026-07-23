@@ -25,8 +25,9 @@ No app install. Just a link.
   stays put while you look around. Turn away, look back — she's still there.
 - 🎙️ **Press-to-talk voice.** Hold the mic (or a Quest controller trigger), speak,
   release. Robust by design: you always see the state and hear if something failed.
-- 🧠 **Real agents.** The "brain" is any OpenClaw agent — with its tools, memory and
-  data. A fast persona layer keeps the conversation snappy while the brain works.
+- 🧠 **Real agents, with memory.** You talk **directly** to any OpenClaw agent — its
+  tools, data and its own persistent conversation history. No middleman rewriting
+  your words; the app just staples a short "answer for voice" instruction on each turn.
 - 🗣️ **Voice + lip-sync.** ElevenLabs voices, per agent, with viseme lip-sync,
   blinking, breathing and facial emotions.
 - 🙆 **A body that reacts.** The agent can `[action:wave]`, `[action:clap]`,
@@ -127,7 +128,7 @@ before exposing a tunnel to the internet.
 
 A-Frame · [@pixiv/three-vrm](https://github.com/pixiv/three-vrm) · a zero-dependency
 Node proxy · [OpenClaw](https://openclaw.ai) (brain) · [ElevenLabs](https://elevenlabs.io)
-(voice) · [OpenAI](https://openai.com) (STT + fast persona). See
+(voice) · [OpenAI](https://openai.com) (speech-to-text). See
 [ARCHITECTURE.md](ARCHITECTURE.md) and [CREDITS.md](CREDITS.md).
 
 ## 🤝 Contributing
