@@ -29,16 +29,28 @@
       return;
     }
 
+    // live list of OpenClaw agents you can incarnate into a body
+    let brains = [];
+    try { brains = (await (await fetch(withK('/api/openclaw-agents'))).json()).agents || []; } catch (e) { /* offline */ }
+
     roster.innerHTML = '';
     for (const a of agents) {
       const card = document.createElement('div');
       card.className = 'roster-card';
+      const chosen = localStorage.getItem('incarna:brain:' + a.id) || a.brain || '';
+      const opts = [...new Set([a.brain, ...brains].filter(Boolean))]; // keep configured brain even if /v1/models is off
+      const options = opts.map((b) => `<option value="${b}"${b === chosen ? ' selected' : ''}>${b}</option>`).join('');
       card.innerHTML =
         `<span class="roster-emoji">${a.emoji || '🤖'}</span>` +
         `<span class="roster-name">${a.name}</span>` +
-        `<span class="roster-desc">${a.desc || ''}</span>`;
+        `<span class="roster-desc">${a.desc || ''}</span>` +
+        (opts.length ? `<label class="brain-pick">incarnar<select data-avatar="${a.id}">${options}</select></label>` : '');
       roster.appendChild(card);
     }
+    roster.querySelectorAll('select[data-avatar]').forEach((sel) => {
+      sel.addEventListener('change', () => localStorage.setItem('incarna:brain:' + sel.dataset.avatar, sel.value));
+      sel.addEventListener('click', (e) => e.stopPropagation());
+    });
     note.textContent = agents.length > 1
       ? 'Look at an avatar to talk to them. Hold the mic (or grip) to speak.'
       : 'Hold the mic button (or a controller trigger) to speak.';

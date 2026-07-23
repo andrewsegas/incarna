@@ -150,6 +150,28 @@ function clientIp(req) {
   return (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'local';
 }
 
+// ------------------------------------------------------------------ /api/openclaw-agents
+// Live list of agents from the gateway (/v1/models), so the UI can let you pick
+// which OpenClaw agent to "incarnate" into an avatar.
+async function apiOpenclawAgents(req, res) {
+  try {
+    const r = await fetch(`${OPENCLAW_URL}/v1/models`, {
+      headers: { ...(OPENCLAW_TOKEN ? { Authorization: `Bearer ${OPENCLAW_TOKEN}` } : {}) },
+    });
+    if (!r.ok) throw new Error(`gateway ${r.status}`);
+    const d = await r.json();
+    const ids = (d.data || [])
+      .map((m) => m && m.id)
+      .filter((id) => typeof id === 'string' && id.startsWith('openclaw'))
+      .map((id) => id.replace(/^openclaw[/:]?/, '')) // openclaw/neo -> neo ; openclaw -> ''
+      .filter((id) => id && id !== 'default');
+    json(res, 200, { agents: [...new Set(ids)].sort() });
+  } catch (e) {
+    console.error('[openclaw-agents]', e.message);
+    json(res, 200, { agents: [], error: e.message });
+  }
+}
+
 // ------------------------------------------------------------------ /api/agent (OpenClaw brain)
 // Talks DIRECTLY to the selected agent — no OpenAI middleman in the conversation.
 // - `user: incarna:<agentId>` gives a STABLE session key, so the agent keeps its
@@ -157,11 +179,12 @@ function clientIp(req) {
 // - voicePreamble() is stapled onto the message so the agent answers in a short,
 //   spoken style and may drive the body with [action:*] — without special teaching.
 async function apiAgent(req, res) {
-  const { persona, text } = await readBody(req);
+  const { persona, text, brain: brainOverride } = await readBody(req);
   if (!text) return json(res, 400, { error: 'text required' });
   const p = agentById(persona);
-  const brain = p?.brain || 'main';
-  const sessionId = `incarna:${p?.id || brain}`;
+  // brainOverride lets you incarnate a different OpenClaw agent into this avatar.
+  const brain = (brainOverride && String(brainOverride).replace(/^openclaw[/:]?/, '')) || p?.brain || 'main';
+  const sessionId = `incarna:${brain}`; // key by brain so history follows who's incarnated
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 180000);
   try {
@@ -341,7 +364,7 @@ const server = http.createServer(async (req, res) => {
           agents: AGENTS.map((a) => ({
             id: a.id, name: a.name, emoji: a.emoji || '🤖', desc: a.desc || '',
             voice: a.voice, avatar: a.avatar, seat: a.seat || 'center',
-            scale: a.scale || 1, phrases: a.phrases || a.id,
+            scale: a.scale || 1, phrases: a.phrases || a.id, brain: a.brain,
           })),
         });
       }
@@ -351,6 +374,7 @@ const server = http.createServer(async (req, res) => {
           voice: a.voice, avatar: a.avatar, seat: a.seat || 'center',
         })));
       }
+      if (req.method === 'GET' && route === '/api/openclaw-agents') return await apiOpenclawAgents(req, res);
       if (req.method === 'GET' && route === '/api/actions') return apiActions(req, res);
       if (req.method === 'POST' && route === '/api/actions') return await apiActionsSave(req, res);
       if (req.method === 'POST' && route === '/api/agent') return await apiAgent(req, res);

@@ -107,7 +107,10 @@
   }
   function refreshChip() {
     const a = agent();
-    chip.textContent = a ? `${a.emoji || '🤖'} ${a.name}` : '';
+    if (!a) { chip.textContent = ''; return; }
+    const brain = localStorage.getItem('incarna:brain:' + a.id) || a.brain;
+    const suffix = (brain && brain !== a.brain) ? ` · ${brain}` : ''; // show who's incarnated if overridden
+    chip.textContent = `${a.emoji || '🤖'} ${a.name}${suffix}`;
   }
 
   // ---------- health badge ----------
@@ -257,7 +260,8 @@
     if (act) act.acionar('think', { hold: true });
     setState('thinking');
     const t0 = Date.now();
-    const brainP = postJson('/api/agent', { persona: a.id, text: transcript }, 120000)
+    const brain = localStorage.getItem('incarna:brain:' + a.id) || a.brain || undefined;
+    const brainP = postJson('/api/agent', { persona: a.id, text: transcript, brain }, 120000)
       .catch((e) => { diag('[agent] ' + (e && e.message)); return { reply: '' }; });
 
     const slow = await Promise.race([

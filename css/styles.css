@@ -34,6 +34,10 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 .roster-emoji { font-size: 32px; }
 .roster-name { font-weight: 600; }
 .roster-desc { color: var(--muted); font-size: 12px; line-height: 1.3; }
+.brain-pick { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; width: 100%;
+  font-size: 10px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--muted); }
+.brain-pick select { width: 100%; background: #0e131b; color: var(--text); border: 1px solid var(--stroke);
+  border-radius: 8px; padding: 6px; font-size: 12px; text-transform: none; letter-spacing: 0; }
 .empty { color: var(--muted); }
 .empty code { color: var(--cyan); }
 #enter-btn {
