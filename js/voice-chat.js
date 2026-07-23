@@ -42,8 +42,9 @@
       '<span id="health" title="service health"></span>' +
       '<span id="active-chip"></span>' +
       '<span class="hud-actions">' +
-        '<button id="ar-btn" type="button" title="Enter passthrough">🥽 AR</button>' +
+        '<button id="ar-btn" type="button" title="Enter immersion (VR/AR passthrough)">🥽 VR</button>' +
         '<button id="arrange-btn" type="button" title="Arrange avatars">🔧</button>' +
+        '<button id="lab-btn" type="button" title="Lab / Config">🧪</button>' +
         '<button id="diag-btn" type="button" title="Diagnostics">🐞</button>' +
       '</span>' +
     '</div>' +
@@ -94,6 +95,7 @@
     diagEl.classList.toggle('hidden');
     diagEl.textContent = diagLines.join('\n');
   });
+  hud.querySelector('#lab-btn').addEventListener('click', () => { location.href = withK('lab.html'); });
 
   // ---------- active agent (from office-manager / gaze) ----------
   function agent() {

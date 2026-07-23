@@ -13,6 +13,9 @@
 
   window.qmaOpenLobby = () => lobby.classList.remove('hidden');
 
+  const labLink = document.getElementById('lab-link');
+  if (labLink) labLink.href = withK('lab.html'); // keep the ?k token
+
   (async function () {
     let agents = [];
     try {

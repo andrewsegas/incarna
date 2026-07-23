@@ -286,6 +286,40 @@ async function apiStt(req, res) {
 // ------------------------------------------------------------------ Action Lab support
 function apiActions(req, res) { json(res, 200, { actions: ACTIONS }); }
 
+// List available assets so the Lab can show/pick everything on disk.
+function listDir(dir, ext) {
+  try {
+    return fs.readdirSync(path.join(__dirname, dir))
+      .filter((f) => f.toLowerCase().endsWith(ext) && !f.startsWith('.'))
+      .sort((a, b) => a.localeCompare(b));
+  } catch { return []; }
+}
+function apiAssets(req, res) {
+  json(res, 200, {
+    avatars: listDir('assets/avatars', '.vrm').map((f) => ({ name: f, path: `assets/avatars/${f}` })),
+    vrmas: listDir('assets/anims/vrma', '.vrma').map((f) => ({ name: f.replace(/\.vrma$/i, ''), file: f })),
+  });
+}
+
+// Upload a new .vrm avatar or .vrma animation from the browser (dev only).
+async function apiUpload(req, res) {
+  if (!ALLOW_DEV_WRITES) return json(res, 403, { error: 'uploads disabled (set ALLOW_DEV_WRITES=true)' });
+  const { kind, name, dataBase64 } = await readBody(req);
+  if (!name || !dataBase64) return json(res, 400, { error: 'name and dataBase64 required' });
+  const cfg = kind === 'avatar' ? { dir: 'assets/avatars', ext: '.vrm' }
+    : kind === 'vrma' ? { dir: 'assets/anims/vrma', ext: '.vrma' } : null;
+  if (!cfg) return json(res, 400, { error: 'kind must be "avatar" or "vrma"' });
+  let safe = String(name).replace(/[^a-zA-Z0-9._-]/g, '_');
+  if (!safe.toLowerCase().endsWith(cfg.ext)) safe += cfg.ext;
+  try {
+    const buf = Buffer.from(dataBase64, 'base64');
+    if (buf.length > 30e6) return json(res, 413, { error: 'file too large (max 30MB)' });
+    fs.writeFileSync(path.join(__dirname, cfg.dir, safe), buf);
+    console.log('[upload]', cfg.dir + '/' + safe, buf.length, 'bytes');
+    json(res, 200, { ok: true, path: `${cfg.dir}/${safe}`, name: safe.replace(/\.vrma$/i, '') });
+  } catch (e) { json(res, 500, { error: e.message }); }
+}
+
 async function apiActionsSave(req, res) {
   if (!ALLOW_DEV_WRITES) return json(res, 403, { error: 'dev writes disabled (set ALLOW_DEV_WRITES=true)' });
   const body = await readBody(req);
@@ -377,6 +411,8 @@ const server = http.createServer(async (req, res) => {
       if (req.method === 'GET' && route === '/api/openclaw-agents') return await apiOpenclawAgents(req, res);
       if (req.method === 'GET' && route === '/api/actions') return apiActions(req, res);
       if (req.method === 'POST' && route === '/api/actions') return await apiActionsSave(req, res);
+      if (req.method === 'GET' && route === '/api/assets') return apiAssets(req, res);
+      if (req.method === 'POST' && route === '/api/upload') return await apiUpload(req, res);
       if (req.method === 'POST' && route === '/api/agent') return await apiAgent(req, res);
       if (req.method === 'POST' && route === '/api/stt') return await apiStt(req, res);
       if (req.method === 'POST' && route === '/api/tts') return await apiTts(req, res);

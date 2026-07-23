@@ -136,6 +136,11 @@ Node proxy · [OpenClaw](https://openclaw.ai) (brain) · [ElevenLabs](https://el
 Ideas, actions, avatars-examples, polish and translations welcome — see
 [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
+## 👤 Author
+
+Created by **Andrews Egas** — [GitHub](https://github.com/andrewsegas) ·
+[LinkedIn](https://www.linkedin.com/in/andrews-egas/). Contributions welcome!
+
 ## 📄 License
 
 Source code: [MIT](LICENSE). Third-party assets and the avatars you supply carry

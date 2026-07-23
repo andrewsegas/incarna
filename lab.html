@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Incarna — Action Lab</title>
+    <title>Incarna — Lab / Config</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="vendor/aframe.min.js"></script>
     <script src="vendor/three-vrm.min.js"></script>
@@ -13,30 +13,44 @@
     <script src="js/components/look-at-camera.js"></script>
     <link rel="stylesheet" href="css/styles.css" />
     <style>
-      body { display: grid; grid-template-columns: 1fr 380px; height: 100vh; overflow: hidden; }
+      body { display: grid; grid-template-columns: 1fr 420px; height: 100vh; overflow: hidden; }
       #stage { position: relative; background: radial-gradient(800px 500px at 50% 20%, #1a2432, #0b0d12 70%); }
       a-scene { width: 100%; height: 100%; }
-      #panel { border-left: 1px solid var(--stroke); background: var(--panel); overflow-y: auto; padding: 16px; }
+      #panel { border-left: 1px solid var(--stroke); background: var(--panel); overflow-y: auto; padding: 16px 16px 60px; }
       #panel h2 { margin: 0 0 2px; font-size: 18px; }
       #panel .sub { color: var(--muted); font-size: 12px; margin-bottom: 14px; }
-      .row { display: grid; grid-template-columns: 84px 1fr auto; gap: 8px; align-items: center;
+      .sec { border: 1px solid var(--stroke); border-radius: 14px; padding: 12px; margin-bottom: 14px; }
+      .sec > h3 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--cyan); }
+      .field { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+      .field label { font-size: 11px; color: var(--muted); min-width: 42px; }
+      select, input[type=text] { background: #0e131b; color: var(--text); border: 1px solid var(--stroke);
+        border-radius: 8px; padding: 7px; font-size: 12px; flex: 1; min-width: 60px; }
+      button.b { padding: 8px 12px; border-radius: 10px; border: 0; cursor: pointer; font-weight: 700; font-size: 12px; }
+      button.b.cyan { background: var(--cyan); color: #04222a; }
+      button.b.ghost { background: #0e131b; color: var(--text); border: 1px solid var(--stroke); }
+      .row { display: grid; grid-template-columns: 76px 1fr auto; gap: 8px; align-items: center;
         padding: 8px; border: 1px solid var(--stroke); border-radius: 12px; margin-bottom: 8px; }
       .row.pass { border-color: var(--ok); } .row.fail { border-color: var(--bad); }
       .row .tag { font-weight: 700; }
       .row .desc { color: var(--muted); font-size: 11px; }
-      .row button.play { padding: 8px 12px; border-radius: 10px; border: 0; cursor: pointer;
-        background: var(--cyan); color: #04222a; font-weight: 700; }
-      .row select { width: 100%; background: #0e131b; color: var(--text); border: 1px solid var(--stroke);
-        border-radius: 8px; padding: 5px; margin-top: 4px; }
       .row .note { width: 100%; background: #0e131b; color: var(--text); border: 1px solid var(--stroke);
         border-radius: 8px; padding: 5px; margin-top: 4px; font-size: 11px; }
-      .barrow { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 16px; }
-      .barrow button { padding: 7px 10px; border-radius: 10px; border: 1px solid var(--stroke);
-        background: #0e131b; color: var(--text); cursor: pointer; font-size: 12px; }
-      #save { width: 100%; padding: 12px; border: 0; border-radius: 12px; cursor: pointer; margin-top: 8px;
+      .row .play { padding: 8px; border-radius: 10px; border: 0; cursor: pointer; background: var(--cyan); color: #04222a; font-weight: 700; }
+      .vrow { display: flex; justify-content: space-between; align-items: center; gap: 8px;
+        padding: 6px 8px; border-bottom: 1px solid var(--stroke); font-size: 12px; }
+      .vrow .map { color: var(--muted); font-size: 10px; }
+      .vrow .map.used { color: var(--ok); }
+      .barrow { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+      .barrow button { padding: 6px 9px; border-radius: 9px; border: 1px solid var(--stroke); background: #0e131b; color: var(--text); cursor: pointer; font-size: 12px; }
+      #save { width: 100%; padding: 12px; border: 0; border-radius: 12px; cursor: pointer; margin-top: 4px;
         background: linear-gradient(180deg, #4bf0ff, var(--cyan)); color: #04222a; font-weight: 700; }
       #savemsg { text-align: center; font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 16px; }
+      #labhead { display: flex; justify-content: space-between; align-items: center; }
+      #labhead a { color: var(--muted); font-size: 12px; text-decoration: none; border: 1px solid var(--stroke); border-radius: 8px; padding: 6px 10px; }
       .legend { position: absolute; left: 12px; bottom: 12px; color: var(--muted); font-size: 12px; }
+      .credit { color: var(--muted); font-size: 11px; text-align: center; margin-top: 14px; }
+      .credit a { color: var(--cyan); text-decoration: none; }
+      .hint { color: var(--muted); font-size: 10px; margin-top: 4px; }
     </style>
   </head>
   <body>
@@ -49,24 +63,72 @@
                   position="0 0 -1.6" rotation="0 0 0"></a-entity>
         <a-entity camera position="0 1.4 0" look-controls wasd-controls></a-entity>
       </a-scene>
-      <div class="legend">drag to orbit • WASD to move • Action Lab</div>
+      <div class="legend">drag to orbit • WASD to move • Lab / Config</div>
     </div>
 
     <div id="panel">
-      <h2>◐ Action Lab</h2>
-      <div class="sub">Trigger each action on a live avatar. Mark what works, add notes, save. Only non-broken actions are offered to the brain in the main app.</div>
+      <div id="labhead">
+        <h2>◐ Incarna Lab</h2>
+        <a href="index.html" id="back">← office</a>
+      </div>
+      <div class="sub">See everything available, add VRM avatars & VRMA animations, wire actions, and test them live. Only non-broken actions are offered to agents in the main app.</div>
 
-      <div><b>Emotions (face only)</b></div>
-      <div class="barrow" id="emos"></div>
+      <!-- AVATAR -->
+      <div class="sec">
+        <h3>Avatar</h3>
+        <div class="field">
+          <label>model</label>
+          <select id="avatar-sel"></select>
+          <button class="b cyan" id="avatar-load">load</button>
+        </div>
+        <div class="field">
+          <label>add</label>
+          <input type="file" id="avatar-file" accept=".vrm" style="flex:1;font-size:11px;color:var(--muted)" />
+          <button class="b ghost" id="avatar-up">upload .vrm</button>
+        </div>
+        <div class="hint">Uploads need the server started with <code>ALLOW_DEV_WRITES=true</code>.</div>
+      </div>
 
-      <div><b>Reset</b></div>
-      <div class="barrow"><button id="idle">▶ idle</button><button id="neutral">neutral face</button></div>
+      <!-- EMOTIONS -->
+      <div class="sec">
+        <h3>Emotions (face only)</h3>
+        <div class="barrow" id="emos"></div>
+        <div class="barrow"><button id="idle">▶ idle</button><button id="neutral">neutral face</button></div>
+      </div>
 
-      <div><b>Actions</b></div>
-      <div id="rows"></div>
+      <!-- ACTIONS CATALOG -->
+      <div class="sec">
+        <h3>Actions (catalog)</h3>
+        <div id="rows"></div>
+      </div>
+
+      <!-- ADD ACTION -->
+      <div class="sec">
+        <h3>Add action</h3>
+        <div class="field"><label>tag</label><input type="text" id="na-tag" placeholder="e.g. dance" /></div>
+        <div class="field"><label>vrma</label><select id="na-vrma"></select></div>
+        <div class="field"><label>face</label><select id="na-face">
+          <option value="">(none)</option><option>happy</option><option>angry</option>
+          <option>sad</option><option>surprised</option><option>relaxed</option></select></div>
+        <button class="b cyan" id="na-add" style="width:100%">+ add to catalog</button>
+        <div class="hint">Then test it below and press Save.</div>
+      </div>
+
+      <!-- ALL VRMA -->
+      <div class="sec">
+        <h3>All VRMA files</h3>
+        <div id="vrmas"></div>
+        <div class="field" style="margin-top:10px">
+          <label>add</label>
+          <input type="file" id="vrma-file" accept=".vrma" style="flex:1;font-size:11px;color:var(--muted)" />
+          <button class="b ghost" id="vrma-up">upload .vrma</button>
+        </div>
+      </div>
 
       <button id="save">💾 Save catalog</button>
       <div id="savemsg"></div>
+      <div class="credit">Incarna — by <a href="https://github.com/andrewsegas" target="_blank" rel="noopener">Andrews Egas</a>
+        · <a href="https://www.linkedin.com/in/andrews-egas/" target="_blank" rel="noopener">LinkedIn</a></div>
     </div>
 
     <script>
@@ -78,28 +140,48 @@
         const el = $('#lab-avatar');
         return (el && el.components && el.components['vrm-actor']) || null;
       }
+      function fileToB64(file) {
+        return new Promise((res, rej) => { const fr = new FileReader();
+          fr.onload = () => res(String(fr.result).split(',')[1]); fr.onerror = rej; fr.readAsDataURL(file); });
+      }
 
       let catalog = [];
+      let assets = { avatars: [], vrmas: [] };
 
       async function boot() {
-        // pick the first configured avatar, else the bundled default
-        let avatar = 'assets/avatars/vrm_girl.vrm';
+        let defaultAvatar = 'assets/avatars/vrm_girl.vrm';
         try {
           const office = await (await fetch(withK('/api/office'))).json();
-          if (office.agents && office.agents[0]) avatar = office.agents[0].avatar;
-        } catch (e) { /* offline: default */ }
-        $('#lab-avatar').setAttribute('vrm-model', 'src: ' + avatar);
+          if (office.agents && office.agents[0]) defaultAvatar = office.agents[0].avatar;
+        } catch (e) { /* offline */ }
+        try { catalog = (await (await fetch(withK('/api/actions'))).json()).actions || []; } catch { catalog = []; }
+        try { assets = await (await fetch(withK('/api/assets'))).json(); } catch { assets = { avatars: [], vrmas: [] }; }
 
-        try { catalog = (await (await fetch(withK('/api/actions'))).json()).actions || []; }
-        catch (e) { catalog = []; }
+        // ensure the default avatar is selectable even if the list is empty
+        if (!assets.avatars.some((a) => a.path === defaultAvatar)) {
+          assets.avatars.unshift({ name: defaultAvatar.split('/').pop(), path: defaultAvatar });
+        }
+        $('#lab-avatar').setAttribute('vrm-model', 'src: ' + defaultAvatar);
+
+        renderAvatars(defaultAvatar);
         renderEmotions();
+        renderVrmaOptions();
         renderRows();
+        renderVrmas();
+      }
+
+      function renderAvatars(current) {
+        const sel = $('#avatar-sel');
+        sel.innerHTML = assets.avatars.map((a) =>
+          `<option value="${a.path}"${a.path === current ? ' selected' : ''}>${a.name}</option>`).join('');
+        $('#avatar-load').onclick = () => $('#lab-avatar').setAttribute('vrm-model', 'src: ' + sel.value);
+        $('#avatar-up').onclick = () => upload('avatar', $('#avatar-file'));
       }
 
       function renderEmotions() {
-        const emos = ['happy', 'angry', 'sad', 'surprised', 'relaxed'];
         const bar = $('#emos');
-        emos.forEach((e) => {
+        bar.innerHTML = '';
+        ['happy', 'angry', 'sad', 'surprised', 'relaxed'].forEach((e) => {
           const b = document.createElement('button');
           b.textContent = e;
           b.onclick = () => { const a = actor(); if (a) a.setEmocao(e); };
@@ -107,6 +189,11 @@
         });
         $('#idle').onclick = () => { const a = actor(); if (a) a.idle(); };
         $('#neutral').onclick = () => { const a = actor(); if (a) a.setEmocao(null); };
+      }
+
+      function renderVrmaOptions() {
+        $('#na-vrma').innerHTML = '<option value="">(face only)</option>' +
+          assets.vrmas.map((v) => `<option value="${v.name}">${v.name}</option>`).join('');
       }
 
       function renderRows() {
@@ -118,7 +205,7 @@
           row.innerHTML =
             `<button class="play">▶ ${act.tag}</button>` +
             `<div><div class="tag">${act.tag}</div><div class="desc">${act.desc || (act.vrma || 'face only')}</div>` +
-            `<input class="note" placeholder="note…" value="${act.note || ''}"></div>` +
+            `<input class="note" placeholder="note…" value="${(act.note || '').replace(/"/g, '&quot;')}"></div>` +
             `<select><option value="ok">ok</option><option value="untested">untested</option><option value="broken">broken</option></select>`;
           const sel = row.querySelector('select');
           sel.value = act.status || 'untested';
@@ -135,13 +222,62 @@
         });
       }
 
+      function renderVrmas() {
+        const used = new Set(catalog.filter((a) => a.vrma).map((a) => a.vrma));
+        const box = $('#vrmas');
+        box.innerHTML = '';
+        if (!assets.vrmas.length) { box.innerHTML = '<div class="hint">No .vrma files found.</div>'; return; }
+        assets.vrmas.forEach((v) => {
+          const tag = catalog.find((a) => a.vrma === v.name);
+          const row = document.createElement('div');
+          row.className = 'vrow';
+          row.innerHTML = `<span>${v.name}</span>` +
+            `<span class="map ${used.has(v.name) ? 'used' : ''}">${tag ? '→ [' + tag.tag + ']' : 'unmapped'}</span>` +
+            `<button class="b cyan" style="padding:5px 9px">▶</button>`;
+          row.querySelector('button').onclick = async () => {
+            const a = actor();
+            if (a) { const res = await a.acionar(v.name); if (res && !res.ok) $('#savemsg').textContent = `${v.name}: ${res.reason}`; }
+          };
+          box.appendChild(row);
+        });
+        $('#vrma-up').onclick = () => upload('vrma', $('#vrma-file'));
+      }
+
+      $('#na-add').onclick = () => {
+        const tag = $('#na-tag').value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+        if (!tag) { $('#savemsg').textContent = 'give the action a tag'; return; }
+        if (catalog.some((a) => a.tag === tag)) { $('#savemsg').textContent = `tag "${tag}" already exists`; return; }
+        const entry = { tag, status: 'untested' };
+        const vrma = $('#na-vrma').value; if (vrma) entry.vrma = vrma;
+        const face = $('#na-face').value; if (face) entry.face = face;
+        catalog.push(entry);
+        $('#na-tag').value = '';
+        renderRows(); renderVrmas();
+        $('#savemsg').textContent = `added "${tag}" — test it, then Save`;
+      };
+
+      async function upload(kind, input) {
+        const file = input.files && input.files[0];
+        if (!file) { $('#savemsg').textContent = 'pick a file first'; return; }
+        $('#savemsg').textContent = 'uploading ' + file.name + '…';
+        try {
+          const dataBase64 = await fileToB64(file);
+          const r = await fetch(withK('/api/upload'), { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ kind, name: file.name, dataBase64 }) });
+          const d = await r.json();
+          if (!d.ok) { $('#savemsg').textContent = '⚠️ ' + (d.error || 'upload failed'); return; }
+          assets = await (await fetch(withK('/api/assets'))).json();
+          if (kind === 'avatar') { renderAvatars(d.path); $('#lab-avatar').setAttribute('vrm-model', 'src: ' + d.path); }
+          else { renderVrmaOptions(); renderVrmas(); }
+          $('#savemsg').textContent = '✅ uploaded ' + d.path;
+        } catch (e) { $('#savemsg').textContent = '⚠️ ' + e.message; }
+      }
+
       $('#save').onclick = async () => {
         $('#savemsg').textContent = 'saving…';
         try {
-          const r = await fetch(withK('/api/actions'), {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ actions: catalog }),
-          });
+          const r = await fetch(withK('/api/actions'), { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ actions: catalog }) });
           const d = await r.json();
           $('#savemsg').textContent = d.ok ? '✅ saved to actions.json' : ('⚠️ ' + (d.error || 'failed'));
         } catch (e) { $('#savemsg').textContent = '⚠️ ' + e.message; }
